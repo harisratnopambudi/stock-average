@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Kalkulator Avg Price Saham</title>
+  <meta name="description" content="Masukkan harga & lot beberapa kali, langsung terlihat average price yang baru. Minimalis & responsif." />
+  <style>
+    :root{
+      --bg:#0f1115; --card:#151923; --fg:#e9eef7; --muted:#9aa4b2; --acc:#5de4c7; --danger:#ff6b6b; --ok:#a0e17b; --bd:#222736;
+    }
+    @media (prefers-color-scheme: light){
+      :root{ --bg:#f7f8fb; --card:#ffffff; --fg:#0f1115; --muted:#5b6573; --acc:#06b6d4; --danger:#e11d48; --ok:#16a34a; --bd:#e6e8ef; }
+    }
+    *{box-sizing:border-box}
+    body{margin:0; font:16px/1.6 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Inter,sans-serif; background:var(--bg); color:var(--fg);} 
+    .wrap{max-width:900px; margin:auto; padding:28px 24px 32px}
+    header{display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:18px}
+    .title{font-weight:900; letter-spacing:.02em; line-height:1.05; margin:0; font-size:clamp(28px,6vw,48px);
+      background:linear-gradient(90deg, var(--acc), color-mix(in oklab, var(--acc) 40%, var(--fg)), var(--ok));
+      -webkit-background-clip:text; background-clip:text; color:transparent; text-shadow:0 1px 0 rgba(0,0,0,.1)}
+    .subtitle{margin:4px 0 0; color:var(--muted); font-size:clamp(12px,2vw,14px)}
+    .card{background:var(--card); border:1px solid var(--bd); border-radius:16px; padding:16px; box-shadow:0 4px 12px rgba(0,0,0,.06)}
+    .row{display:grid; grid-template-columns:1fr; gap:12px}
+    @media (min-width:720px){ .row{grid-template-columns: 2fr 2fr 1fr} }
+    label{display:block; font-size:12px; color:var(--muted); margin-bottom:6px}
+    input[type=number]{width:100%; padding:12px 14px; border-radius:12px; border:1px solid var(--bd); background:transparent; color:var(--fg); outline:none}
+    input[type=number]:focus{border-color:var(--acc); box-shadow:0 0 0 3px color-mix(in oklab, var(--acc) 20%, transparent)}
+    .btn{cursor:pointer; padding:12px 14px; border:none; border-radius:12px; background:var(--acc); color:#0b1321; font-weight:600}
+    .btn.secondary{background:transparent; color:var(--fg); border:1px dashed var(--bd)}
+    .btn.danger{background:var(--danger); color:white}
+    .btn:disabled{opacity:.5; cursor:not-allowed}
+    .stack{display:flex; gap:10px; flex-wrap:wrap}
+    .table{width:100%; border-collapse:collapse; margin-top:12px; font-size:14px}
+    .table th,.table td{padding:10px 8px; text-align:right; border-bottom:1px dashed var(--bd)}
+    .table th:first-child,.table td:first-child{text-align:left}
+    .chip{display:inline-flex; align-items:center; gap:8px; padding:8px 10px; border-radius:999px; background:color-mix(in oklab, var(--acc) 15%, transparent); border:1px solid var(--bd)}
+    .metrics{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:12px}
+    @media(min-width:720px){ .metrics{grid-template-columns:repeat(4,1fr)} }
+    .kpi{background:var(--card); border:1px solid var(--bd); border-radius:14px; padding:12px}
+    .kpi .label{font-size:12px; color:var(--muted)}
+    .kpi .val{font-size:clamp(18px,3vw,22px); font-weight:700}
+    .foot{display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:12px; color:var(--muted); font-size:13px}
+    a{color:var(--acc); text-decoration:none}
+    .sr{position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); border:0}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1 class="title">Kalkulator Average Price Saham</h1>
+      </div>
+      <button class="btn secondary" id="resetAll" title="Hapus semua entri (Alt+R)">Reset</button>
+    </header>
+
+    <section class="card" aria-label="Form input transaksi">
+      <div class="row">
+        <div>
+          <label for="price">Harga per Saham (Rp)</label>
+          <input id="price" type="number" inputmode="decimal" min="0" step="1" placeholder="mis. 2.150" />
+        </div>
+        <div>
+          <label for="lot">Lot (1 lot = <span id="lotSizeText">100</span> saham)</label>
+          <input id="lot" type="number" inputmode="numeric" min="1" step="1" placeholder="mis. 5" />
+        </div>
+        <div class="stack" style="align-items:end">
+          <button class="btn" id="addBtn" style="width:100%">Tambah (Enter)</button>
+        </div>
+      </div>
+      <div class="stack" style="margin-top:10px">
+        <span class="chip"><input id="lotSize" type="number" min="1" step="1" value="100" style="width:80px; padding:6px 8px; border-radius:8px; border:1px solid var(--bd); background:transparent; color:var(--fg)"> <span>Ukuran 1 Lot</span></span>
+        <span class="chip">Angka otomatis diformat IDR.</span>
+      </div>
+    </section>
+
+    <section class="card" style="margin-top:14px" aria-label="Daftar entri">
+      <div class="stack" style="justify-content:space-between">
+        <div class="stack" style="align-items:center">
+          <strong>Entri</strong>
+          <span class="chip" id="entriesCount">0 item</span>
+        </div>
+        <button class="btn danger" id="clearLast" title="Hapus entri terakhir (Ctrl+Z)">Undo terakhir</button>
+      </div>
+
+      <table class="table" id="tbl">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Harga (Rp)</th>
+            <th>Lot</th>
+            <th>Saham</th>
+            <th>Biaya (Rp)</th>
+            <th>Aksi</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr id="placeholder"><td colspan="6" style="text-align:center; color:var(--muted)">Belum ada entri. Tambahkan harga & lot di atas.</td></tr>
+        </tbody>
+      </table>
+
+      <div class="metrics">
+        <div class="kpi"><div class="label">Total Lot</div><div class="val" id="kpiLots">0</div></div>
+        <div class="kpi"><div class="label">Total Saham</div><div class="val" id="kpiShares">0</div></div>
+        <div class="kpi"><div class="label">Total Biaya</div><div class="val" id="kpiCost">Rp 0</div></div>
+        <div class="kpi"><div class="label">Avg Price</div><div class="val" id="kpiAvg">Rp 0</div></div>
+      </div>
+
+      <div class="foot">
+        <div>Catatan: Avg Price dihitung = Total Biaya ÷ Total Saham. Tidak memasukkan fee transaksi.</div>
+        <div>
+          <button class="btn secondary" id="exportBtn" title="Simpan ke file JSON">Ekspor</button>
+          <input id="importFile" class="sr" type="file" accept="application/json" />
+          <button class="btn secondary" id="importBtn" title="Muat dari file JSON">Impor</button>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <script>
+    const fmtIDR = new Intl.NumberFormat('id-ID');
+    const $ = sel => document.querySelector(sel);
+
+    const state = {
+      lotSize: 100,
+      entries: [] // {price, lot}
+    };
+
+    // Load saved state
+    (function init(){
+      const saved = localStorage.getItem('avgcalc_v1');
+      if(saved){
+        try{ Object.assign(state, JSON.parse(saved)); }catch{}
+      }
+      $('#lotSize').value = state.lotSize || 100;
+      $('#lotSizeText').textContent = state.lotSize || 100;
+      render();
+    })();
+
+    function save(){ localStorage.setItem('avgcalc_v1', JSON.stringify(state)); }
+
+    function addEntry(){
+      const price = Number($('#price').value);
+      const lot = Number($('#lot').value);
+      if(!(price>0 && lot>0)) return;
+      state.entries.push({price, lot});
+      $('#price').value = '';
+      $('#lot').value = '';
+      render();
+      $('#price').focus();
+      save();
+    }
+
+    function delEntry(idx){
+      state.entries.splice(idx,1);
+      render();
+      save();
+    }
+
+    function undoLast(){
+      if(state.entries.length){ state.entries.pop(); render(); save(); }
+    }
+
+    function calc(){
+      const lotSize = state.lotSize || 100;
+      let totalShares = 0, totalCost = 0, totalLots=0;
+      for(const {price, lot} of state.entries){
+        const shares = lot * lotSize;
+        totalShares += shares;
+        totalLots += lot;
+        totalCost += price * shares;
+      }
+      const avg = totalShares ? (totalCost / totalShares) : 0;
+      return { totalShares, totalCost, totalLots, avg };
+    }
+
+    function render(){
+      const tbody = document.querySelector('#tbl tbody');
+      tbody.innerHTML = '';
+      if(!state.entries.length){
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td colspan="6" style="text-align:center; color:var(--muted)">Belum ada entri. Tambahkan harga & lot di atas.</td>`;
+        tr.id = 'placeholder';
+        tbody.appendChild(tr);
+      }
+      state.entries.forEach((row, i)=>{
+        const shares = row.lot * (state.lotSize||100);
+        const cost = row.price * shares;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${i+1}</td>
+          <td>Rp ${fmtIDR.format(row.price)}</td>
+          <td>${fmtIDR.format(row.lot)}</td>
+          <td>${fmtIDR.format(shares)}</td>
+          <td>Rp ${fmtIDR.format(cost)}</td>
+          <td><button class="btn secondary" aria-label="Hapus entri ${i+1}" onclick="delEntry(${i})">Hapus</button></td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      const {totalShares,totalCost,totalLots,avg} = calc();
+      $('#kpiLots').textContent = fmtIDR.format(totalLots);
+      $('#kpiShares').textContent = fmtIDR.format(totalShares);
+      $('#kpiCost').textContent = `Rp\u00A0${fmtIDR.format(Math.round(totalCost))}`;
+      $('#kpiAvg').textContent = totalShares? `Rp\u00A0${fmtIDR.format(Math.round(avg))}` : 'Rp\u00A00';
+      $('#entriesCount').textContent = `${state.entries.length} item`;
+    }
+
+    // Events
+    $('#addBtn').addEventListener('click', addEntry);
+    $('#price').addEventListener('keydown', (e)=>{ if(e.key==='Enter') addEntry(); });
+    $('#lot').addEventListener('keydown', (e)=>{ if(e.key==='Enter') addEntry(); });
+
+    $('#resetAll').addEventListener('click', ()=>{ if(confirm('Hapus semua entri?')){ state.entries = []; render(); save(); }});
+    $('#clearLast').addEventListener('click', undoLast);
+
+    $('#lotSize').addEventListener('change', e=>{
+      const v = Number(e.target.value||100); state.lotSize = v>0? v:100; $('#lotSizeText').textContent = state.lotSize; render(); save();
+    });
+
+    // Import / Export
+    $('#exportBtn').addEventListener('click', ()=>{
+      const blob = new Blob([JSON.stringify(state, null, 2)], {type:'application/json'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'avg-price-saham.json'; a.click();
+      URL.revokeObjectURL(url);
+    });
+    $('#importBtn').addEventListener('click', ()=> $('#importFile').click());
+    $('#importFile').addEventListener('change', async (e)=>{
+      const file = e.target.files[0]; if(!file) return;
+      const txt = await file.text();
+      try{ const obj = JSON.parse(txt); if(obj && Array.isArray(obj.entries)){
+        state.entries = obj.entries; 
+        state.lotSize = obj.lotSize||100; 
+        render(); save(); 
+      } }
+      catch(err){ alert('File tidak valid'); }
+      e.target.value = '';
+    });
+
+    // Shortcuts
+    window.addEventListener('keydown', (e)=>{
+      if(e.altKey && (e.key==='r' || e.key==='R')){ e.preventDefault(); $('#resetAll').click(); }
+      if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='z'){ e.preventDefault(); undoLast(); }
+    });
+  </script>
+</body>
+</html>
